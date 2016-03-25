@@ -1,13 +1,13 @@
 {
   "name": "sharedb-postgres",
   "version": "1.0.0",
-  "description": "",
+  "description": "PostgreSQL adapter for ShareDB",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Jeremy Apthorp <nornagon@nornagon.net>",
+  "license": "MIT",
   "dependencies": {
     "pg": "^4.5.1",
     "sharedb": "^0.11.34"
