@@ -3,7 +3,7 @@
 PostgreSQL database adapter for [sharedb](https://github.com/share/sharedb). This
 driver can be used both as a snapshot store and oplog.
 
-Doesn't support queries yet.
+Doesn't support queries (yet?).
 
 Highly experimental.
 
