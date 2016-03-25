@@ -15,8 +15,10 @@ Highly experimental.
 To instantiate a sharedb-postgres wrapper, invoke the module and pass in your
 PostgreSQL configuration as an argument. For example:
 
-    var db = require('sharedb-postgres')('postgres://localhost/mydb');
-    var backend = require('sharedb')({db: db})
+```js
+var db = require('sharedb-postgres')('postgres://localhost/mydb');
+var backend = require('sharedb')({db: db})
+```
 
 ## Error codes
 
