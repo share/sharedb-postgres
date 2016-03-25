@@ -5,16 +5,11 @@ var pg = require('pg')
 
 function PostgresDB(options) {
   if (!(this instanceof PostgresDB)) return new PostgresDB(options);
-  if (typeof options === 'string') {
-    options = {
-      url: options
-    }
-  }
   DB.call(this, options);
 
   this.closed = false;
 
-  this.pg_url = options.url;
+  this.pg_config = options;
 };
 module.exports = PostgresDB;
 
@@ -45,7 +40,7 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, callback) {
    * }
    * snapshot: PostgresSnapshot
    */
-  pg.connect(this.pg_url, function(err, client, done) {
+  pg.connect(this.pg_config, function(err, client, done) {
     if (err) {
       done(client);
       callback(err);
@@ -130,7 +125,7 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, callback) {
 // snapshot). A snapshot with a version of zero is returned if the docuemnt
 // has never been created in the database.
 PostgresDB.prototype.getSnapshot = function(collection, id, fields, callback) {
-  pg.connect(this.pg_url, function(err, client, done) {
+  pg.connect(this.pg_config, function(err, client, done) {
     if (err) {
       done(client);
       callback(err);
@@ -180,7 +175,7 @@ PostgresDB.prototype.getSnapshot = function(collection, id, fields, callback) {
 //
 // Callback should be called as callback(error, [list of ops]);
 PostgresDB.prototype.getOps = function(collection, id, from, to, callback) {
-  pg.connect(this.pg_url, function(err, client, done) {
+  pg.connect(this.pg_config, function(err, client, done) {
     if (err) {
       done(client);
       callback(err);
