@@ -1,5 +1,5 @@
 var DB = require('sharedb').DB;
-var pg = require('pg')
+var pg = require('pg');
 
 // Postgres-backed ShareDB database
 
@@ -29,7 +29,6 @@ function rollback(client, done) {
 // Persists an op and snapshot if it is for the next version. Calls back with
 // callback(err, succeeded)
 PostgresDB.prototype.commit = function(collection, id, op, snapshot, callback) {
-  console.log(collection, id, op, snapshot)
   /*
    * op: CreateOp {
    *   src: '24545654654646',
@@ -60,10 +59,9 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, callback) {
       'SELECT max(version) AS max_version FROM ops WHERE collection = $1 AND doc_id = $2',
       [collection, id],
       function(err, res) {
-        var max_version = res.rows[0].max_version
+        var max_version = res.rows[0].max_version;
         if (max_version == null)
-          max_version = 0
-        console.log(snapshot.v, max_version)
+          max_version = 0;
         if (snapshot.v !== max_version + 1) {
           return callback(null, false);
         }
@@ -149,7 +147,7 @@ PostgresDB.prototype.getSnapshot = function(collection, id, fields, callback) {
             row.data,
             undefined // TODO: metadata
           )
-          callback(null, snapshot)
+          callback(null, snapshot);
         } else {
           var snapshot = new PostgresSnapshot(
             id,
@@ -158,7 +156,7 @@ PostgresDB.prototype.getSnapshot = function(collection, id, fields, callback) {
             undefined,
             undefined
           )
-          callback(null, snapshot)
+          callback(null, snapshot);
         }
       }
     )
@@ -181,7 +179,6 @@ PostgresDB.prototype.getOps = function(collection, id, from, to, callback) {
       callback(err);
       return;
     }
-    console.log(collection, id, from, to)
     client.query(
       'SELECT version, operation FROM ops WHERE collection = $1 AND doc_id = $2 AND version >= $3 AND version < $4',
       [collection, id, from, to],
