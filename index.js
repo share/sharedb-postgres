@@ -199,35 +199,6 @@ PostgresDB.prototype.getOps = function(collection, id, from, to, callback) {
   })
 };
 
-// The memory database query function returns all documents in a collection
-// regardless of query by default
-/*
-PostgresDB.prototype.query = function(collection, query, fields, options, callback) {
-  var db = this;
-  process.nextTick(function() {
-    var collectionDocs = db.docs[collection];
-    var snapshots = [];
-    for (var id in collectionDocs || {}) {
-      var snapshot = db._getSnapshotSync(collection, id);
-      snapshots.push(snapshot);
-    }
-    try {
-      var filtered = db._querySync(snapshots, query, options);
-      callback(null, filtered);
-    } catch (err) {
-      callback(err);
-    }
-  });
-};
-
-// For testing, it may be useful to implement the desired query language by
-// defining this function
-PostgresDB.prototype._querySync = function(snapshots, query, options) {
-  return snapshots;
-};
-*/
-
-
 function PostgresSnapshot(id, version, type, data, meta) {
   this.id = id;
   this.v = version;
