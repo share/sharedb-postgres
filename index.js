@@ -28,7 +28,7 @@ function rollback(client, done) {
 
 // Persists an op and snapshot if it is for the next version. Calls back with
 // callback(err, succeeded)
-PostgresDB.prototype.commit = function(collection, id, op, snapshot, callback) {
+PostgresDB.prototype.commit = function(collection, id, op, snapshot, options, callback) {
   /*
    * op: CreateOp {
    *   src: '24545654654646',
@@ -122,7 +122,7 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, callback) {
 // Get the named document from the database. The callback is called with (err,
 // snapshot). A snapshot with a version of zero is returned if the docuemnt
 // has never been created in the database.
-PostgresDB.prototype.getSnapshot = function(collection, id, fields, callback) {
+PostgresDB.prototype.getSnapshot = function(collection, id, fields, options, callback) {
   pg.connect(this.pg_config, function(err, client, done) {
     if (err) {
       done(client);
@@ -172,7 +172,7 @@ PostgresDB.prototype.getSnapshot = function(collection, id, fields, callback) {
 // The version will be inferred from the parameters if it is missing.
 //
 // Callback should be called as callback(error, [list of ops]);
-PostgresDB.prototype.getOps = function(collection, id, from, to, callback) {
+PostgresDB.prototype.getOps = function(collection, id, from, to, options, callback) {
   pg.connect(this.pg_config, function(err, client, done) {
     if (err) {
       done(client);
