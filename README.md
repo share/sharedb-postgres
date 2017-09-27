@@ -5,7 +5,7 @@ driver can be used both as a snapshot store and oplog.
 
 Doesn't support queries (yet?).
 
-Highly experimental.
+Moderately experimental. (This drives [Synaptograph](https://www.synaptograph.com)'s backend, and [@nornagon](https://github.com/nornagon) hasn't noticed any issues so far.)
 
 
 ## Usage
