@@ -38,7 +38,6 @@ module.exports = class PostgresDB {
         return;
       }
     /*const*/ var query = {
-      // TODO: investigate if ops should use on conflict 
       name: 'sdb-commit-op-and-snap',
       text: `With snaps as (
         Insert into snapshots (collection,doc_id,doc_type, version,data)
@@ -52,7 +51,6 @@ module.exports = class PostgresDB {
         Select n.* From ( select $1 c, $2 t, $3 v, $6 daa)
         n 
         where (v = (select version+1 v from ops where collection = $1 and doc_id = $2 for update) or not exists (select 1 from ops where collection = $1 and doc_id = $2 for update)) and exists  (select 1 from snaps)
-        On conflict(collection, doc_id, version) do update set version = $3, operation = $6
         Returning version`,
       values: [collection,id,snapshot.v, snapshot.type, snapshot.data,op]
     }
