@@ -1,5 +1,5 @@
-import {DB} from 'sharedb';
-import pg from 'pg';
+var DB = require('sharedb').DB;
+var pg = require('pg');
 
 // Postgres-backed ShareDB database
 
@@ -38,7 +38,7 @@ class PostgresDB {
         return;
       }
     /*const*/ query = {
-      // TODO: investigate if ops should use on conflict
+      // TODO: investigate if ops should use on conflict 
       name: 'sdb-commit-op-and-snap',
       text: `With snaps as (
         Insert into snapshots (collection,doc_id,doc_type, version,data)
