@@ -10,6 +10,7 @@ class PostgresDB {
     this.closed = false;
 
     this.pg_config = options;
+
   }
 
   close(callback) {
@@ -36,77 +37,35 @@ class PostgresDB {
         callback(err);
         return;
       }
-      function commit() {
-        client.query('COMMIT', err => {
-          done(err);
-          if (err) {
-            callback(err);
-          } else {
-            callback(null, true);
-          }
-        })
+    /*const*/ query = {
+      // TODO: investigate if ops should use on conflict
+      name: 'sdb-commit-op-and-snap',
+      text: `With snaps as (
+        Insert into snapshots (collection,doc_id,doc_type, version,data)
+        Select n.* From ( select $1 c, $2 d, $4 t, $3 v, $5 daa)
+        n 
+        where v = (select version+1 v from snapshots where collection = $1 and doc_id = $2 for update) or not exists (select 1 from snapshots where collection = $1 and doc_id = $2 for update)
+        On conflict(collection, doc_id) do update set version = $3, data = $5 , doc_type = $2
+        Returning version
+        ) 
+        Insert into ops (collection,doc_id, version,operation)
+        Select n.* From ( select $1 c, $2 t, $3 v, $6 daa)
+        n 
+        where (v = (select version+1 v from ops where collection = $1 and doc_id = $2 for update) or not exists (select 1 from ops where collection = $1 and doc_id = $2 for update)) and exists  (select 1 from snaps)
+        On conflict(collection, doc_id, version) do update set version = $3, operation = $6
+        Returning version`,
+      values: [collection,id,snapshot.v, snapshot.type, snapshot.data,op]
+    }
+    client.query(query, (err, res) => {
+      if (err) {
+        console.log(err.stack)
+        callback(err)
+      } else {
+        console.log(res.rows[0])
+        callback(null,true)
       }
-      client.query(
-        'SELECT max(version) AS max_version FROM ops WHERE collection = $1 AND doc_id = $2',
-        [collection, id],
-        (err, res) => {
-          let max_version = res.rows[0].max_version;
-          if (max_version == null)
-            max_version = 0;
-          if (snapshot.v !== max_version + 1) {
-            return callback(null, false);
-          }
-          client.query('BEGIN', err => {
-            client.query(
-              'INSERT INTO ops (collection, doc_id, version, operation) VALUES ($1, $2, $3, $4)',
-              [collection, id, snapshot.v, op],
-              (err, res) => {
-                if (err) {
-                  // TODO: if err is "constraint violation", callback(null, false) instead
-                  rollback(client, done);
-                  callback(err);
-                  return;
-                }
-                if (snapshot.v === 1) {
-                  client.query(
-                    'INSERT INTO snapshots (collection, doc_id, doc_type, version, data) VALUES ($1, $2, $3, $4, $5)',
-                    [collection, id, snapshot.type, snapshot.v, snapshot.data],
-                    (err, res) => {
-                      // TODO:
-                      // if the insert was successful and did insert, callback(null, true)
-                      // if the insert was successful and did not insert, callback(null, false)
-                      // if there was an error, rollback and callback(error)
-                      if (err) {
-                        rollback(client, done);
-                        callback(err);
-                        return;
-                      }
-                      commit();
-                    }
-                  )
-                } else {
-                  client.query(
-                    'UPDATE snapshots SET doc_type = $3, version = $4, data = $5 WHERE collection = $1 AND doc_id = $2 AND version = ($4 - 1)',
-                    [collection, id, snapshot.type, snapshot.v, snapshot.data],
-                    (err, res) => {
-                      // TODO:
-                      // if any rows were updated, success
-                      // if 0 rows were updated, rollback and not success
-                      // if error, rollback and not success
-                      if (err) {
-                        rollback(client, done);
-                        callback(err);
-                        return;
-                      }
-                      commit();
-                    }
-                  )
-                }
-              }
-            )
-          })
-        }
-      )
+    })
+    
     })
   }
 
@@ -188,16 +147,12 @@ class PostgresDB {
 
 export default PostgresDB;
 
-PostgresDB.prototype = Object.create(DB.prototype);
-
-function rollback(client, done) {
-  client.query('ROLLBACK', err => done(err))
-}
-
-function PostgresSnapshot(id, version, type, data, meta) {
-  this.id = id;
-  this.v = version;
-  this.type = type;
-  this.data = data;
-  this.m = meta;
+class PostgresSnapshot {
+  constructor(id, version, type, data, meta) {
+    this.id = id;
+    this.v = version;
+    this.type = type;
+    this.data = data;
+    this.m = meta;
+  }
 }
