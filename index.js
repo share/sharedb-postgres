@@ -1,9 +1,9 @@
-var DB = require('sharedb').DB;
-var pg = require('pg');
+import {DB} from 'sharedb';
+import pg from 'pg';
 
 // Postgres-backed ShareDB database
 
-class PostgresDB {
+module.exports = class PostgresDB {
   constructor(options) {
     DB.call(this, options);
 
@@ -144,8 +144,6 @@ class PostgresDB {
     })
   }
 }
-
-export default PostgresDB;
 
 class PostgresSnapshot {
   constructor(id, version, type, data, meta) {
