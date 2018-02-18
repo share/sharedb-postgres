@@ -1,5 +1,5 @@
-import {DB} from 'sharedb';
-import pg from 'pg';
+var DB = require('sharedb').DB;
+var pg = require('pg');
 
 // Postgres-backed ShareDB database
 
