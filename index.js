@@ -37,7 +37,7 @@ module.exports = class PostgresDB {
         callback(err);
         return;
       }
-    /*const*/ query = {
+    /*const*/ var query = {
       // TODO: investigate if ops should use on conflict 
       name: 'sdb-commit-op-and-snap',
       text: `With snaps as (
