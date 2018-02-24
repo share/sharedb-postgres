@@ -59,7 +59,7 @@ module.exports = class PostgresDB {
       if (err) {
         console.log(err.stack)
         callback(err)
-      } else if(result.rows.length === 0) {
+      } else if(res.rows.length === 0) {
         console.log("Unable to commit, not the latest version")
         callback(null,false)
       } 
