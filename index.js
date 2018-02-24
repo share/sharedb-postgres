@@ -10,6 +10,7 @@ module.exports = class PostgresDB {
     this.closed = false;
 
     this.pg_config = options;
+    this.pool = new pg.Pool(this.pg_config)
 
   }
 
@@ -31,7 +32,7 @@ module.exports = class PostgresDB {
      * }
      * snapshot: PostgresSnapshot
      */
-    pg.connect(this.pg_config, (err, client, done) => {
+    this.pool.connect((err, client, done) => {
       if (err) {
         done(client);
         callback(err);
@@ -41,16 +42,16 @@ module.exports = class PostgresDB {
       name: 'sdb-commit-op-and-snap',
       text: `With snaps as (
         Insert into snapshots (collection,doc_id,doc_type, version,data)
-        Select n.* From ( select $1 c, $2 d, $4 t, $3 v, $5 daa)
+        Select n.* From ( select $1 c, $2 d, $4 t, $3::integer v, $5::jsonb daa)
         n 
         where v = (select version+1 v from snapshots where collection = $1 and doc_id = $2 for update) or not exists (select 1 from snapshots where collection = $1 and doc_id = $2 for update)
-        On conflict(collection, doc_id) do update set version = $3, data = $5 , doc_type = $2
+        On conflict(collection, doc_id) do update set version = $3, data = $5 , doc_type = $4
         Returning version
         ) 
         Insert into ops (collection,doc_id, version,operation)
-        Select n.* From ( select $1 c, $2 t, $3 v, $6 daa)
+        Select n.* From ( select $1 c, $2 t, $3::integer v, $6::jsonb daa)
         n 
-        where (v = (select version+1 v from ops where collection = $1 and doc_id = $2 for update) or not exists (select 1 from ops where collection = $1 and doc_id = $2 for update)) and exists  (select 1 from snaps)
+        where (v = (select max(version)+1 v from ops where collection = $1 and doc_id = $2) or not exists (select 1 from ops where collection = $1 and doc_id = $2 for update)) and exists  (select 1 from snaps)
         Returning version`,
       values: [collection,id,snapshot.v, snapshot.type, snapshot.data,op]
     }
@@ -58,7 +59,11 @@ module.exports = class PostgresDB {
       if (err) {
         console.log(err.stack)
         callback(err)
-      } else {
+      } else if(result.rows.length === 0) {
+        console.log("Unable to commit, not the latest version")
+        callback(null,false)
+      } 
+      else {
         console.log(res.rows[0])
         callback(null,true)
       }
@@ -71,7 +76,7 @@ module.exports = class PostgresDB {
   // snapshot). A snapshot with a version of zero is returned if the docuemnt
   // has never been created in the database.
   getSnapshot(collection, id, fields, options, callback) {
-    pg.connect(this.pg_config, (err, client, done) => {
+    this.pool.connect((err, client, done) => {
       if (err) {
         done(client);
         callback(err);
@@ -121,7 +126,7 @@ module.exports = class PostgresDB {
   //
   // Callback should be called as callback(error, [list of ops]);
   getOps(collection, id, from, to, options, callback) {
-    pg.connect(this.pg_config, (err, client, done) => {
+    this.pool.connect(  (err, client, done) => {
       if (err) {
         done(client);
         callback(err);
