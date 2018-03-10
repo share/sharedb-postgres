@@ -26,7 +26,7 @@ ALTER TABLE snapshots
   ALTER COLUMN data
   SET DATA TYPE jsonb
   USING data::jsonb;
-``
+```
 
 ## Usage
 
