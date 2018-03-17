@@ -10,6 +10,7 @@ function PostgresDB(options) {
   this.closed = false;
 
   this.pg_config = options;
+  this.pool = new pg.Pool(this.pg_config)
 };
 module.exports = PostgresDB;
 
@@ -17,6 +18,8 @@ PostgresDB.prototype = Object.create(DB.prototype);
 
 PostgresDB.prototype.close = function(callback) {
   this.closed = true;
+  this.pool.end()
+  
   if (callback) callback();
 };
 
@@ -39,7 +42,7 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, options, ca
    * }
    * snapshot: PostgresSnapshot
    */
-  pg.connect(this.pg_config, function(err, client, done) {
+  this.pool.connect(function(err, client, done) {
     if (err) {
       done(client);
       callback(err);
@@ -123,7 +126,7 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, options, ca
 // snapshot). A snapshot with a version of zero is returned if the docuemnt
 // has never been created in the database.
 PostgresDB.prototype.getSnapshot = function(collection, id, fields, options, callback) {
-  pg.connect(this.pg_config, function(err, client, done) {
+  this.pool.connect(function(err, client, done) {
     if (err) {
       done(client);
       callback(err);
@@ -173,7 +176,7 @@ PostgresDB.prototype.getSnapshot = function(collection, id, fields, options, cal
 //
 // Callback should be called as callback(error, [list of ops]);
 PostgresDB.prototype.getOps = function(collection, id, from, to, options, callback) {
-  pg.connect(this.pg_config, function(err, client, done) {
+  this.pool.connect(function(err, client, done) {
     if (err) {
       done(client);
       callback(err);
