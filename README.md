@@ -30,7 +30,7 @@ ALTER TABLE snapshots
 
 ## Usage
 
-`sharedb-postgres-jsonb` wraps native [node-postgres](https://github.com/brianc/node-postgres), and it supports the same configuration options.
+`sharedb-postgres` wraps native [node-postgres](https://github.com/brianc/node-postgres), and it supports the same configuration options.
 
 To instantiate a sharedb-postgres wrapper, invoke the module and pass in your
 PostgreSQL configuration as an argument or use environmental arguments. 
