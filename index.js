@@ -50,7 +50,7 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, options, ca
     * (iff the new version is exactly 1 more than the latest table or if
     * the document id does not exists)
     *
-    * It will than Insert into the ops table if it is exactly 1 more than the 
+    * It will then insert into the ops table if it is exactly 1 more than the 
     * latest table or it the first operation and iff the previous insert into
     * the snapshot table is successful.
     *
