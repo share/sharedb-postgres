@@ -68,9 +68,11 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, options, ca
           return callback(null, false);
         }
         client.query('BEGIN', function(err) {
+          // ZW: Snapshot version is always 1 above op version. We should
+          // use op.v here, not snapshot.v
           client.query(
             'INSERT INTO ops (collection, doc_id, version, operation) VALUES ($1, $2, $3, $4)',
-            [collection, id, snapshot.v, op],
+            [collection, id, op.v, op],
             function(err, res) {
               if (err) {
                 // TODO: if err is "constraint violation", callback(null, false) instead
@@ -181,8 +183,11 @@ PostgresDB.prototype.getOps = function(collection, id, from, to, options, callba
       callback(err);
       return;
     }
+
+    // ZW: Add explicit row ordering here
     client.query(
-      'SELECT version, operation FROM ops WHERE collection = $1 AND doc_id = $2 AND version >= $3 AND version < $4',
+      'SELECT version, operation FROM ops WHERE collection = $1 AND doc_id =' +
+        ' $2 AND version >= $3 AND version < $4 ORDER BY version ASC',
       [collection, id, from, to],
       function(err, res) {
         done();
