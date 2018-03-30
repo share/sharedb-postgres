@@ -57,8 +57,13 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, options, ca
         }
       })
     }
+    // ZW: Op versions start from 0, snapshot versions start from 1. To get
+    // the next snapshot version, we should query the snapshots table, not
+    // the ops table.
+    // (cf: the MemoryDB adapter, which uses the number of op rows, rather
+    // than the highest op version)
     client.query(
-      'SELECT max(version) AS max_version FROM ops WHERE collection = $1 AND doc_id = $2',
+      'SELECT max(version) AS max_version FROM snapshots WHERE collection = $1 AND doc_id = $2',
       [collection, id],
       function(err, res) {
         var max_version = res.rows[0].max_version;
