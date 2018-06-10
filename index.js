@@ -9,9 +9,7 @@ function PostgresDB(options) {
 
   this.closed = false;
 
-  this.pg_config = options;
-  this.pool = new pg.Pool(this.pg_config)
-
+  this.pool = new pg.Pool(options);
 };
 module.exports = PostgresDB;
 
@@ -19,7 +17,7 @@ PostgresDB.prototype = Object.create(DB.prototype);
 
 PostgresDB.prototype.close = function(callback) {
   this.closed = true;
-  this.pool.end()
+  this.pool.end();
   
   if (callback) callback();
 };
