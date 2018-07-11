@@ -172,7 +172,7 @@ PostgresDB.prototype.getOps = function(collection, id, from, to, options, callba
       return;
     }
     client.query(
-      'SELECT version, operation FROM ops WHERE collection = $1 AND doc_id = $2 AND version >= $3 AND version < $4',
+      'SELECT version, operation FROM ops WHERE collection = $1 AND doc_id = $2 AND version > $3 AND version <= $4',
       [collection, id, from, to],
       function(err, res) {
         done();
