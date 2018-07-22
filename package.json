@@ -8,10 +8,18 @@
   },
   "author": "Jeremy Apthorp <nornagon@nornagon.net>",
   "license": "MIT",
-  "keywords": ["sharedb", "sharejs", "share", "postgres"],
+  "keywords": [
+    "sharedb",
+    "sharejs",
+    "share",
+    "postgres"
+  ],
   "repository": "share/sharedb-postgres",
   "dependencies": {
     "pg": "^7.4.1",
     "sharedb": "^1.0.0-beta.7"
+  },
+  "devDependencies": {
+    "eslint": "^5.2.0"
   }
 }
