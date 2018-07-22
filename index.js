@@ -60,6 +60,9 @@ PostgresDB.prototype.commit = function (collection, id, op, snapshot, options, c
     * Casting is required as postgres thinks that collection and doc_id are
     * not varchar
     */
+    // ZW: We also should have the first op version be 0, not 1, to match the
+    // reference MemoryDB implementation.  Catching up outdated clients who
+    // reconnect may be buggy otherwise.
     const query = {
       name: "sdb-commit-op-and-snap",
       text: `WITH snapshot_id AS (
@@ -91,7 +94,7 @@ PostgresDB.prototype.commit = function (collection, id, op, snapshot, options, c
           FROM ops
           WHERE collection = $1 AND doc_id = $2
         )
-      ) AND EXISTS (SELECT 1 FROM snapshot_id)
+      ) AND EXISTS (SELECT 0 FROM snapshot_id)
       RETURNING version`,
       values: [collection, id, snapshot.v, snapshot.type, snapshot.data, op]
     };
