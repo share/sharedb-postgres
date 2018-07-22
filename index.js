@@ -60,16 +60,18 @@ PostgresDB.prototype.commit = function (collection, id, op, snapshot, options, c
     * Casting is required as postgres thinks that collection and doc_id are
     * not varchar
     */
-    // ZW: We also should have the first op version be 0, not 1, to match the
-    // reference MemoryDB implementation.  Catching up outdated clients who
-    // reconnect may be buggy otherwise.
+    // ZW: We also should have the first op version be 0 (the actual value
+    // of op.v) instead of 1, in order to match the reference MemoryDB
+    // implementation.  Catching up outdated clients who reconnect may be
+    // buggy otherwise.
     const query = {
       name: "sdb-commit-op-and-snap",
       text: `WITH snapshot_id AS (
         INSERT INTO snapshots (collection, doc_id, doc_type, version, data)
-        SELECT $1::varchar collection, $2::varchar doc_id, $4 doc_type, $3 v, $5 d
-        WHERE $3 = (
-          SELECT version+1 v
+        SELECT $1::varchar collection, $2::varchar doc_id,
+               $3 snap_type, $4 snap_v, $5 snap_data
+        WHERE $4 = (
+          SELECT version+1 snap_v
           FROM snapshots
           WHERE collection = $1 AND doc_id = $2
           FOR UPDATE
@@ -79,24 +81,28 @@ PostgresDB.prototype.commit = function (collection, id, op, snapshot, options, c
           WHERE collection = $1 AND doc_id = $2
           FOR UPDATE
         )
-        ON CONFLICT (collection, doc_id) DO UPDATE SET version = $3, data = $5, doc_type = $4
+        ON CONFLICT (collection, doc_id) DO 
+          UPDATE SET doc_type = $3, version = $4, data = $5
         RETURNING version
       )
       INSERT INTO ops (collection, doc_id, version, operation)
-      SELECT $1::varchar collection, $2::varchar doc_id, $3 v, $6 operation
+      SELECT $1::varchar collection, $2::varchar doc_id,
+             $6 op_v, $7 op
       WHERE (
-        $3 = (
+        $6 = (
           SELECT max(version)+1
           FROM ops
           WHERE collection = $1 AND doc_id = $2
         ) OR NOT EXISTS (
-          SELECT 0
+          SELECT 1
           FROM ops
           WHERE collection = $1 AND doc_id = $2
         )
       ) AND EXISTS (SELECT 1 FROM snapshot_id)
       RETURNING version`,
-      values: [collection, id, snapshot.v, snapshot.type, snapshot.data, op]
+      values: [
+        collection, id, snapshot.type, snapshot.v, snapshot.data, op.v, op
+      ]
     };
     client.query(query, (err, res) => {
       if (err) {
