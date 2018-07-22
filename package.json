@@ -1,6 +1,6 @@
 {
   "name": "sharedb-postgres",
-  "version": "3.0.0-zw.2",
+  "version": "3.0.0-zw.3",
   "description": "PostgreSQL adapter for ShareDB",
   "main": "index.js",
   "scripts": {

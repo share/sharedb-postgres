@@ -90,11 +90,11 @@ PostgresDB.prototype.commit = function (collection, id, op, snapshot, options, c
           FROM ops
           WHERE collection = $1 AND doc_id = $2
         ) OR NOT EXISTS (
-          SELECT 1
+          SELECT 0
           FROM ops
           WHERE collection = $1 AND doc_id = $2
         )
-      ) AND EXISTS (SELECT 0 FROM snapshot_id)
+      ) AND EXISTS (SELECT 1 FROM snapshot_id)
       RETURNING version`,
       values: [collection, id, snapshot.v, snapshot.type, snapshot.data, op]
     };
