@@ -28,6 +28,18 @@ ALTER TABLE snapshots
   USING data::jsonb;
 ```
 
+In addition, the `snapshots` table might have a `NOT NULL` constraint on the `doc_type` and `data` columns that will need to be dropped, since these are set to null when a ShareDB document is deleted via its `.del()` method.
+
+```PLpgSQL
+ALTER TABLE snapshots
+  ALTER COLUMN doc_type
+  DROP NOT NULL;
+  
+ALTER TABLE snapshots
+  ALTER COLUMN data
+  DROP NOT NULL;
+```
+
 ## Usage
 
 `sharedb-postgres` wraps native [node-postgres](https://github.com/brianc/node-postgres), and it supports the same configuration options.
