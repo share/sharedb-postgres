@@ -137,9 +137,12 @@ PostgresDB.prototype.getOps = function(collection, id, from, to, options, callba
       callback(err);
       return;
     }
-    client.query(
-      'SELECT version, operation FROM ops WHERE collection = $1 AND doc_id = $2 AND version > $3 AND version <= $4',
-      [collection, id, from, to],
+
+    var cmd = 'SELECT version, operation FROM ops WHERE collection = $1 AND doc_id = $2 AND version > $3 ';
+    var params = [collection, id, from];
+    if(to || to == 0) { cmd += ' AND version <= $4'; params.push(to)}
+    cmd += ' order by version';
+    client.query( cmd, params,
       function(err, res) {
         done();
         if (err) {
