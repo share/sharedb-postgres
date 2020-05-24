@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS snapshots (
   PRIMARY KEY (collection, doc_id)
 );
 
-CREATE INDEX IF NOT EXISTS ops_version ON snapshots (collection, doc_id, version);
+CREATE INDEX IF NOT EXISTS snapshots_version ON snapshots (collection, doc_id);
 
 ALTER TABLE ops
   ALTER COLUMN operation
