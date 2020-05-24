@@ -69,7 +69,6 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, options, ca
       } 
       else {
         done(client);
-        console.log(res.rows[0])
         callback(null,true)
       }
     })
