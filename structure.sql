@@ -1,4 +1,4 @@
-CREATE TABLE ops (
+CREATE TABLE IF NOT EXISTS ops (
   collection character varying(255) not null,
   doc_id character varying(255) not null,
   version integer not null,
@@ -6,7 +6,7 @@ CREATE TABLE ops (
   PRIMARY KEY (collection, doc_id, version)
 );
 
-CREATE TABLE snapshots (
+CREATE TABLE IF NOT EXISTS snapshots (
   collection character varying(255) not null,
   doc_id character varying(255) not null,
   doc_type character varying(255) not null,
@@ -14,3 +14,15 @@ CREATE TABLE snapshots (
   data jsonb not null,
   PRIMARY KEY (collection, doc_id)
 );
+
+CREATE INDEX IF NOT EXISTS ops_version ON snapshots (collection, doc_id, version);
+
+ALTER TABLE ops
+  ALTER COLUMN operation
+  SET DATA TYPE jsonb
+  USING operation::jsonb;
+
+ALTER TABLE snapshots
+  ALTER COLUMN data
+  SET DATA TYPE jsonb
+  USING data::jsonb;
