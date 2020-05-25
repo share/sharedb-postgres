@@ -10,7 +10,7 @@ function PostgresDB(options) {
   this.closed = false;
 
   this.pg_config = options;
-    this.pool = new pg.Pool(this.pg_config)
+  this.pool = new pg.Pool(options);
 };
 module.exports = PostgresDB;
 
@@ -18,6 +18,8 @@ PostgresDB.prototype = Object.create(DB.prototype);
 
 PostgresDB.prototype.close = function(callback) {
   this.closed = true;
+  this.pool.end();
+  
   if (callback) callback();
 };
 
@@ -41,30 +43,63 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, options, ca
         callback(err);
         return;
       }
-    /*const*/ var query = {
+    /*
+    * This query uses common table expression to upsert the snapshot table 
+    * (iff the new version is exactly 1 more than the latest table or if
+    * the document id does not exists)
+    *
+    * It will then insert into the ops table if it is exactly 1 more than the 
+    * latest table or it the first operation and iff the previous insert into
+    * the snapshot table is successful.
+    *
+    * This result of this query the version of the newly inserted operation
+    * If either the ops or the snapshot insert fails then 0 rows are returned
+    *
+    * If 0 zeros are return then the callback must return false   
+    *
+    * Casting is required as postgres thinks that collection and doc_id are
+    * not varchar  
+    */  
+    const query = {
       name: 'sdb-commit-op-and-snap',
-      text: `With snaps as (
-        Insert into snapshots (collection,doc_id,doc_type, version,data)
-        Select n.* From ( select $1 c, $2 d, $4 t, $3::integer v, $5::jsonb daa)
-        n 
-        where v = (select version+1 v from snapshots where collection = $1 and doc_id = $2 for update) or not exists (select 1 from snapshots where collection = $1 and doc_id = $2 for update)
-        On conflict(collection, doc_id) do update set version = $3, data = $5 , doc_type = $4
-        Returning version
-        ) 
-        Insert into ops (collection,doc_id, version,operation)
-        Select n.* From ( select $1 c, $2 t, $3::integer v, $6::jsonb daa)
-        n 
-        where (v = (select max(version)+1 v from ops where collection = $1 and doc_id = $2) or not exists (select 1 from ops where collection = $1 and doc_id = $2 for update)) and exists  (select 1 from snaps)
-        Returning version`,
+      text: `WITH snapshot_id AS (
+  INSERT INTO snapshots (collection, doc_id, doc_type, version, data)
+  SELECT $1::varchar collection, $2::varchar doc_id, $4 doc_type, $3 v, $5 d
+  WHERE $3 = (
+    SELECT version+1 v
+    FROM snapshots
+    WHERE collection = $1 AND doc_id = $2
+    FOR UPDATE
+  ) OR NOT EXISTS (
+    SELECT 1
+    FROM snapshots
+    WHERE collection = $1 AND doc_id = $2
+    FOR UPDATE
+  )
+  ON CONFLICT (collection, doc_id) DO UPDATE SET version = $3, data = $5, doc_type = $4
+  RETURNING version
+)
+INSERT INTO ops (collection, doc_id, version, operation)
+SELECT $1::varchar collection, $2::varchar doc_id, $3 v, $6 operation
+WHERE (
+  $3 = (
+    SELECT max(version)+1
+    FROM ops
+    WHERE collection = $1 AND doc_id = $2
+  ) OR NOT EXISTS (
+    SELECT 1
+    FROM ops
+    WHERE collection = $1 AND doc_id = $2
+  )
+) AND EXISTS (SELECT 1 FROM snapshot_id)
+RETURNING version`,
       values: [collection,id,snapshot.v, snapshot.type, snapshot.data,op]
     }
     client.query(query, (err, res) => {
       if (err) {
-        console.log(err.stack)
         callback(err)
       } else if(res.rows.length === 0) {
         done(client);
-        console.log("Unable to commit, not the latest version")
         callback(null,false)
       } 
       else {

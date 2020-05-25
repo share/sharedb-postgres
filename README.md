@@ -51,16 +51,15 @@ PGUSER=dbuser  PGPASSWORD=secretpassword PGHOST=database.server.com PGDATABASE=m
 Example using an object
 
 ```js
-var db = require('sharedb-postgres')({
-  user: 'dbuser',
-  host: 'database.server.com',
-  database: 'mydb',
-  password: 'secretpassword',
-  port: 5433,
-});
+var db = require('sharedb-postgres')({host: 'localhost', database: 'mydb'});
 var backend = require('sharedb')({db: db})
 ```
 
 ## Error codes
 
 PostgreSQL errors are passed back directly.
+
+## Changelog
+
+Note that version 3.0.0 introduces breaking changes in how you specify
+connection parameters. See the [changelog](CHANGELOG.md) for more info.
