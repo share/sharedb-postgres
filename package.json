@@ -17,6 +17,7 @@
   "repository": "share/sharedb-postgres",
   "dependencies": {
     "pg": "^7.4.1",
-    "sharedb": "^1.0.0-beta.7"
+    "pg-pool": "^3.2.1",
+    "sharedb": "^1.0.0"
   }
 }
