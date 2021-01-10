@@ -1,168 +1,261 @@
-var DB = require('sharedb').DB;
-var pg = require('pg');
+var ShareDB = require("sharedb");
 
-// Postgres-backed ShareDB database
+const AWS = require("aws-sdk");
+const AWS_CONFIG = require("./aws_config");
 
-function PostgresDB(options) {
-  if (!(this instanceof PostgresDB)) return new PostgresDB(options);
-  DB.call(this, options);
+var credentials = new AWS.SharedIniFileCredentials(
+  AWS_CONFIG.SharedIniFileCredentials
+);
+AWS.config.credentials = credentials;
 
-  this.closed = false;
+var dynamodb = new AWS.DynamoDB(AWS_CONFIG.DynamoDB);
 
-  this.pool = new pg.Pool(options);
-};
-module.exports = PostgresDB;
+class ShareDBDynamo extends ShareDB.DB {
+  constructor(options) {
+    super(options);
+    this.DocumentClient = new AWS.DynamoDB.DocumentClient({
+      service: dynamodb,
+    });
+  }
 
-PostgresDB.prototype = Object.create(DB.prototype);
+  close(callback) {
+    console.log("\n\nclose");
+    this.closed = true;
+    // console.log("\n\ndon't need to close dynamodb");
+    if (callback) callback();
+  }
 
-PostgresDB.prototype.close = function(callback) {
-  this.closed = true;
-  this.pool.end();
-  
-  if (callback) callback();
-};
-
-function rollback(client, done) {
-  client.query('ROLLBACK', function(err) {
-    return done(err);
-  })
+  rollback(msg, params, err) {
+    console.log("\n\nrollback");
+    console.log("\n\nTODO: Implement transactions", {
+      msg,
+      params,
+      err,
+    });
+  }
 }
+
+module.exports = ShareDBDynamo;
 
 // Persists an op and snapshot if it is for the next version. Calls back with
 // callback(err, succeeded)
-PostgresDB.prototype.commit = function(collection, id, op, snapshot, options, callback) {
+ShareDBDynamo.prototype.commit = async function (
+  collection,
+  doc_id,
+  op,
+  snapshot,
+  options,
+  callback
+) {
+  console.log("\n\ncommit", {
+    collection,
+    doc_id,
+    op,
+    snapshot,
+    options,
+    callback,
+  });
+  console.log("commit op:", JSON.stringify(op));
+
   /*
-   * op: CreateOp {
-   *   src: '24545654654646',
-   *   seq: 1,
-   *   v: 0,
-   *   create: { type: 'http://sharejs.org/types/JSONv0', data: { ... } },
-   *   m: { ts: 12333456456 } }
-   * }
-   * snapshot: PostgresSnapshot
+    Operations:
+    pk="COLLECTION::${collection}<<OP"
+    sk="DOCID::${doc_id}&VERSION::${version}"
+    schema: collection, doci_id, version, operation json
+    -- maintains a record of all operations
+
+    Snapshot:
+    pk="COLLECTION::${collection}<<SNAPSHOT"
+    sk="DOCID::${doc_id}&VERSION::${version}"
+    schema: collection, doci_id, version, snapshot data
+    -- only keeps the latest snapshot (updates)
    */
-  this.pool.connect(function(err, client, done) {
+
+  // get the latest version
+  // TODO: Verify ScanIndexForward should be false and not true
+  const latestVersionParams = {
+    TableName: AWS_CONFIG.TABLE_NAME,
+    KeyConditionExpression: "#pk = :pk and begins_with(#sk, :sk)",
+    ExpressionAttributeNames: {
+      "#pk": "pk",
+      "#sk": "sk",
+    },
+    ExpressionAttributeValues: {
+      ":pk": `COLLECTION::${collection}<<OP`,
+      ":sk": `DOCID::${doc_id}`,
+    },
+    ScanIndexForward: false,
+    Limit: 1,
+  };
+
+  let latest_version;
+  // await this.DocumentClient.query(latestVersionParams, function (err, data) {
+  //   if (err) {
+  //     console.log({ err });
+  //     return callback(err);
+  //   } else {
+  //     console.log("\n\nlatestVersionParams:", {
+  //       latestVersionParams,
+  //       data: JSON.stringify(data),
+  //       len: data.Items.length,
+  //     });
+  //     if (data.Items.length > 0) {
+  //       latest_version = data.Items[0].version;
+  //       console.log("latest_version:", latest_version);
+  //     } else {
+  //       latest_version = 0;
+  //     }
+  //   }
+  // });
+
+  const versionResults = await this.DocumentClient.query(latestVersionParams)
+    .promise()
+    .catch((err) => {
+      console.log({ err });
+      return callback(err);
+    });
+
+  console.log("\n\nlatestVersionParams:", {
+    latestVersionParams,
+    data: JSON.stringify(versionResults),
+    len: versionResults.Items.length,
+  });
+
+  if (versionResults.Items.length > 0) {
+    latest_version = versionResults.Items[0].version;
+    console.log("latest_version:", latest_version);
+  } else {
+    latest_version = 0;
+  }
+
+  // .then((data) => {
+
+  // })
+  // .catch((err) => {
+  //   console.log({ err });
+  //   return callback(err);
+  // });
+
+  console.log({ versionResults });
+
+  // verify version is after snapshot
+  console.log(
+    `snapshot.v (${snapshot.v}) !== latest_version+1 (${
+      latest_version + 1
+    }) === ${snapshot.v !== latest_version + 1}`
+  );
+  if (snapshot.v !== latest_version + 1) {
+    return callback(null, false);
+  }
+
+  // add op record
+  var newOpParams = {
+    TableName: AWS_CONFIG.TABLE_NAME,
+    Item: {
+      pk: `COLLECTION::${collection}<<OP`,
+      sk: `DOCID::${doc_id}&VERSION::${latest_version + 1}`,
+      collection: collection,
+      doc_id,
+      version: latest_version + 1,
+      operation: op,
+    },
+  };
+
+  await this.DocumentClient.put(newOpParams, function (err, data) {
     if (err) {
-      done(client);
+      this.rollback("adding new op", newOpParams, err);
       callback(err);
       return;
     }
-    function commit() {
-      client.query('COMMIT', function(err) {
-        done(err);
-        if (err) {
-          callback(err);
-        } else {
-          callback(null, true);
-        }
-      })
+    // else console.log("\n\nnewOp:", { newOpParams, data });
+  });
+
+  // upsert the snapshot
+  var snapshotParams = {
+    TableName: AWS_CONFIG.TABLE_NAME,
+    Item: {
+      pk: `COLLECTION::${collection}<<SNAPSHOT`,
+      sk: `DOCID::${doc_id}&VERSION::${snapshot.v}`,
+      collection: collection,
+      doc_id,
+      doc_type: snapshot.type,
+      version: snapshot.v,
+      data: snapshot.data,
+    },
+  };
+
+  this.DocumentClient.put(snapshotParams, function (err, data) {
+    if (err) {
+      this.rollback("updating snapshot", snapshotParams, err);
+      callback(err);
+      return;
     }
-    client.query(
-      'SELECT max(version) AS max_version FROM ops WHERE collection = $1 AND doc_id = $2',
-      [collection, id],
-      function(err, res) {
-        var max_version = res.rows[0].max_version;
-        if (max_version == null)
-          max_version = 0;
-        if (snapshot.v !== max_version + 1) {
-          return callback(null, false);
-        }
-        client.query('BEGIN', function(err) {
-          client.query(
-            'INSERT INTO ops (collection, doc_id, version, operation) VALUES ($1, $2, $3, $4)',
-            [collection, id, snapshot.v, op],
-            function(err, res) {
-              if (err) {
-                // TODO: if err is "constraint violation", callback(null, false) instead
-                rollback(client, done);
-                callback(err);
-                return;
-              }
-              if (snapshot.v === 1) {
-                client.query(
-                  'INSERT INTO snapshots (collection, doc_id, doc_type, version, data) VALUES ($1, $2, $3, $4, $5)',
-                  [collection, id, snapshot.type, snapshot.v, snapshot.data],
-                  function(err, res) {
-                    // TODO:
-                    // if the insert was successful and did insert, callback(null, true)
-                    // if the insert was successful and did not insert, callback(null, false)
-                    // if there was an error, rollback and callback(error)
-                    if (err) {
-                      rollback(client, done);
-                      callback(err);
-                      return;
-                    }
-                    commit();
-                  }
-                )
-              } else {
-                client.query(
-                  'UPDATE snapshots SET doc_type = $3, version = $4, data = $5 WHERE collection = $1 AND doc_id = $2 AND version = ($4 - 1)',
-                  [collection, id, snapshot.type, snapshot.v, snapshot.data],
-                  function(err, res) {
-                    // TODO:
-                    // if any rows were updated, success
-                    // if 0 rows were updated, rollback and not success
-                    // if error, rollback and not success
-                    if (err) {
-                      rollback(client, done);
-                      callback(err);
-                      return;
-                    }
-                    commit();
-                  }
-                )
-              }
-            }
-          )
-        })
-      }
-    )
-  })
+    // else console.log(data);
+  });
 };
 
 // Get the named document from the database. The callback is called with (err,
 // snapshot). A snapshot with a version of zero is returned if the docuemnt
 // has never been created in the database.
-PostgresDB.prototype.getSnapshot = function(collection, id, fields, options, callback) {
-  this.pool.connect(function(err, client, done) {
+ShareDBDynamo.prototype.getSnapshot = async function (
+  collection,
+  doc_id,
+  fields,
+  options,
+  callback
+) {
+  console.log("\n\ngetSnapshot", {
+    collection,
+    doc_id,
+    fields,
+    options,
+    callback,
+  });
+
+  /*
+  get the latest snapshot by collection and doc_id (sorted by version)
+  return a DynamoDBSnapshot -- new/null if no snapshot is returned
+  */
+
+  const latestSnapshotParams = {
+    TableName: AWS_CONFIG.TABLE_NAME,
+    KeyConditionExpression: "#pk = :pk and begins_with(#sk, :sk)",
+    ExpressionAttributeNames: {
+      "#pk": "pk",
+      "#sk": "sk",
+    },
+    ExpressionAttributeValues: {
+      ":pk": `COLLECTION::${collection}<<SNAPSHOT`,
+      ":sk": `DOCID::${doc_id}`,
+    },
+    ScanIndexForward: false,
+  };
+
+  let latestSnapshot = new DynamoSnapshot(doc_id);
+  await this.DocumentClient.query(latestSnapshotParams, function (err, data) {
     if (err) {
-      done(client);
-      callback(err);
-      return;
-    }
-    client.query(
-      'SELECT version, data, doc_type FROM snapshots WHERE collection = $1 AND doc_id = $2 LIMIT 1',
-      [collection, id],
-      function(err, res) {
-        done();
-        if (err) {
-          callback(err);
-          return;
-        }
-        if (res.rows.length) {
-          var row = res.rows[0]
-          var snapshot = new PostgresSnapshot(
-            id,
-            row.version,
-            row.doc_type,
-            row.data,
-            undefined // TODO: metadata
-          )
-          callback(null, snapshot);
-        } else {
-          var snapshot = new PostgresSnapshot(
-            id,
-            0,
-            null,
-            undefined,
-            undefined
-          )
-          callback(null, snapshot);
-        }
+      console.log({ err });
+      return callback(err);
+    } else {
+      // console.log("\n\nlatestSnapshotParams:", {
+      //   latestSnapshotParams,
+      //   data,
+      //   len: data.Items.length,
+      // });
+      if (data.Items.length > 0) {
+        results = data.Items[0];
+        // console.log("\n\nlatestSnapshotParams results:", results);
+        latestSnapshot = new DynamoSnapshot(
+          doc_id,
+          results.version,
+          results.doc_type,
+          results.data
+        );
+        // console.log("\n\nlatestSnapshotParams results:", latestSnapshot);
       }
-    )
-  })
+      callback(null, latestSnapshot);
+    }
+  });
 };
 
 // Get operations between [from, to) noninclusively. (Ie, the range should
@@ -174,34 +267,69 @@ PostgresDB.prototype.getSnapshot = function(collection, id, fields, options, cal
 // The version will be inferred from the parameters if it is missing.
 //
 // Callback should be called as callback(error, [list of ops]);
-PostgresDB.prototype.getOps = function(collection, id, from, to, options, callback) {
-  this.pool.connect(function(err, client, done) {
+ShareDBDynamo.prototype.getOps = async function (
+  collection,
+  doc_id,
+  from,
+  to,
+  options,
+  callback
+) {
+  console.log("\n\ngetOps", {
+    collection,
+    doc_id,
+    from,
+    to,
+    options,
+    callback,
+  });
+  // console.log({ from, to });
+
+  var opRangeParams = {
+    TableName: AWS_CONFIG.TABLE_NAME,
+    KeyConditionExpression: "#pk = :pk and sk between :sk1 and :sk2",
+    ExpressionAttributeNames: {
+      "#pk": "pk",
+    },
+    ExpressionAttributeValues: {
+      ":pk": `COLLECTION::${collection}<<OP`,
+      ":sk1": `DOCID::${doc_id}&VERSION::${from}`,
+      ":sk2": `DOCID::${doc_id}&VERSION::${to - 1}`,
+    },
+  };
+
+  if (to === null) {
+    opRangeParams.KeyConditionExpression = "#pk = :pk and sk >= :sk1";
+    delete opRangeParams.ExpressionAttributeValues[":sk2"];
+  }
+
+  await this.DocumentClient.query(opRangeParams, function (err, data) {
     if (err) {
-      done(client);
+      console.log({ err });
       callback(err);
       return;
+    } else {
+      // console.log("\n\nopRangeParams:", { opRangeParams, data });
+      console.log("data:", JSON.stringify(data.Items));
+      const operation_list = data.Items.map((row) => row.operation);
+      console.log("operation_list:", JSON.stringify(operation_list));
+      callback(null, operation_list);
     }
-    client.query(
-      'SELECT version, operation FROM ops WHERE collection = $1 AND doc_id = $2 AND version >= $3 AND version < $4',
-      [collection, id, from, to],
-      function(err, res) {
-        done();
-        if (err) {
-          callback(err);
-          return;
-        }
-        callback(null, res.rows.map(function(row) {
-          return row.operation;
-        }));
-      }
-    )
-  })
+  });
 };
 
-function PostgresSnapshot(id, version, type, data, meta) {
-  this.id = id;
-  this.v = version;
-  this.type = type;
-  this.data = data;
-  this.m = meta;
+class DynamoSnapshot {
+  constructor(
+    doc_id,
+    version = 0,
+    doc_type = null,
+    data = undefined,
+    meta = undefined
+  ) {
+    this.id = doc_id;
+    this.v = version;
+    this.type = doc_type;
+    this.data = data;
+    this.m = meta;
+  }
 }

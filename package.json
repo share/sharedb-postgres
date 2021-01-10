@@ -1,17 +1,22 @@
 {
-  "name": "sharedb-postgres",
-  "version": "3.0.0",
-  "description": "PostgreSQL adapter for ShareDB",
+  "name": "sharedb-dynamodb",
+  "version": "1.0.0",
+  "description": "DynamoDB adapter for ShareDB",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Jeremy Apthorp <nornagon@nornagon.net>",
+  "author": "Evan Schalton",
   "license": "MIT",
-  "keywords": ["sharedb", "sharejs", "share", "postgres"],
-  "repository": "share/sharedb-postgres",
+  "keywords": [
+    "aws-sdk",
+    "sharedb",
+    "sharejs",
+    "share"
+  ],
+  "repository": "share/sharedb-dynamodb",
   "dependencies": {
-    "pg": "^7.4.1",
+    "aws-sdk": "^2.824.0",
     "sharedb": "^1.0.0-beta.7"
   }
 }
