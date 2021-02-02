@@ -1,3 +1,8 @@
+## 4.0.1
+
+ - upgrade sharedb
+
+
 ## 4.0.0
 
  - upgrade `pg` from 7.4.1 to 8.5.1 to prevent silent failure for node v14 or later, reported in [this issue](https://github.com/brianc/node-postgres/issues/2317). 
