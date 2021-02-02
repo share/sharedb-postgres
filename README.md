@@ -1,11 +1,15 @@
-# sharedb-postgres
+# @plotdb/sharedb-postgres
 
-PostgreSQL database adapter for [sharedb](https://github.com/share/sharedb). This
-driver can be used both as a snapshot store and oplog.
+PostgreSQL database adapter for [sharedb](https://github.com/share/sharedb). This driver can be used both as a snapshot store and oplog.
 
 Doesn't support queries (yet?).
 
 Moderately experimental. (This drives [Synaptograph](https://www.synaptograph.com)'s backend, and [@nornagon](https://github.com/nornagon) hasn't noticed any issues so far.)
+
+
+## Note about versioning
+
+This is a fork from the [original `sharedb-postgres`](https://github.com/share/sharedb-postgres) and its relative forks (see [billwashere](https://github.com/billwashere/sharedb-postgres-jsonb), [zbryikt](https://github.com/zbryikt/sharedb-postgres-jsonb). It seems to have been not maintained for a long time since 2018, Thus we decide to fork it and maintain it as `@plotdb/sharedb-postgre`.
 
 
 ## Requirements

@@ -1,3 +1,15 @@
+## 4.0.0
+
+ - upgrade `pg` from 7.4.1 to 8.5.1 to prevent silent failure for node v14 or later, reported in [this issue](https://github.com/brianc/node-postgres/issues/2317). 
+ - fix submit ops failed due to version mismatched - https://github.com/share/sharedb-postgres/issues/8
+
+## Note about re-versioning
+
+Original `sharedb-postgres` seems to have been not maintained for a long time since 2018. Thus we made a fork and maintain it as `@plotdb/sharedb-postgre`.
+
+
+# Change log in original repo
+
 ## 3.0.0
 
 Thanks to @billwashere, we upgraded to a more modern version of `pg` (4.5.1 ->
