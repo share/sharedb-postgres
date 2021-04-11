@@ -11,7 +11,7 @@
   "keywords": ["sharedb", "sharejs", "share", "postgres"],
   "repository": "share/sharedb-postgres",
   "dependencies": {
-    "pg": "^7.4.1",
+    "pg": "^8.5.1",
     "sharedb": "^1.0.0-beta.7"
   }
 }
