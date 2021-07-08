@@ -12,6 +12,13 @@ Moderately experimental. (This drives [Synaptograph](https://www.synaptograph.co
 This is a fork from the [original `sharedb-postgres`](https://github.com/share/sharedb-postgres) and its relative forks (see [billwashere](https://github.com/billwashere/sharedb-postgres-jsonb), [zbryikt](https://github.com/zbryikt/sharedb-postgres-jsonb). It seems to have been not maintained for a long time since 2018, Thus we decide to fork it and maintain it as `@plotdb/sharedb-postgre`.
 
 
+## Installation 
+
+```cmd
+npm i @plotdb/sharedb-postgres
+```
+
+
 ## Requirements
 
 Due to the fix to resolve [high concurency issues](https://github.com/share/sharedb-postgres/issues/1) Postgres 9.5+ is now required.
@@ -42,7 +49,7 @@ PostgreSQL configuration as an argument or use environmental arguments.
 For example using environmental arugments:
 
 ```js
-var db = require('sharedb-postgres')();
+var db = require('@plotdb/sharedb-postgres')();
 var backend = require('sharedb')({db: db})
 ```
 
@@ -55,7 +62,7 @@ PGUSER=dbuser  PGPASSWORD=secretpassword PGHOST=database.server.com PGDATABASE=m
 Example using an object
 
 ```js
-var db = require('sharedb-postgres')({host: 'localhost', database: 'mydb'});
+var db = require('@plotdb/sharedb-postgres')({host: 'localhost', database: 'mydb'});
 var backend = require('sharedb')({db: db})
 ```
 
