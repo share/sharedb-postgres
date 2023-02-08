@@ -1,17 +1,26 @@
 {
-  "name": "sharedb-postgres",
-  "version": "3.0.0",
-  "description": "PostgreSQL adapter for ShareDB",
+  "name": "@plotdb/sharedb-postgres",
+  "version": "4.0.1",
+  "description": "PostgreSQL adapter for ShareDB. forked from share/sharedb-postgres",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Jeremy Apthorp <nornagon@nornagon.net>",
   "license": "MIT",
-  "keywords": ["sharedb", "sharejs", "share", "postgres"],
-  "repository": "share/sharedb-postgres",
+  "keywords": [
+    "sharedb",
+    "sharejs",
+    "share",
+    "postgres"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/plotdb/sharedb-postgres"
+  },
   "dependencies": {
     "pg": "^8.5.1",
-    "sharedb": "^1.0.0-beta.7"
+    "pg-pool": "^3.2.1",
+    "sharedb": "^1.6.0"
   }
 }
