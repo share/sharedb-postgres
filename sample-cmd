@@ -1,0 +1,16 @@
+/*var query = {
+  name: "sdb-commit-op-and-snap",
+  text: `
+    with snaps as (
+      insert into snapshots (collection, doc_id, doc_type, version, data)
+      values ($1, $2, $3, $4, $5)
+      on conflict (collection, doc_id, version) do update set doc_type = $3, data = $5
+    returning version
+    )
+    insert into ops ( collection, doc_id, version, operation )
+    values ($1, $2, $4, $6) on conflict (collection, doc_id, version) do update set operation = $6
+    returning version
+  `,
+  values: [collection, id, snapshot.type, snapshot.v, snapshot.data, op]
+}*/
+

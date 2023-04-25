@@ -9,6 +9,7 @@ function PostgresDB(options) {
 
   this.closed = false;
 
+  this.pg_config = options;
   this.pool = new pg.Pool(options);
 };
 module.exports = PostgresDB;
@@ -22,11 +23,6 @@ PostgresDB.prototype.close = function(callback) {
   if (callback) callback();
 };
 
-function rollback(client, done) {
-  client.query('ROLLBACK', function(err) {
-    return done(err);
-  })
-}
 
 // Persists an op and snapshot if it is for the next version. Calls back with
 // callback(err, succeeded)
@@ -41,84 +37,78 @@ PostgresDB.prototype.commit = function(collection, id, op, snapshot, options, ca
    * }
    * snapshot: PostgresSnapshot
    */
-  this.pool.connect(function(err, client, done) {
-    if (err) {
-      done(client);
-      callback(err);
-      return;
-    }
-    function commit() {
-      client.query('COMMIT', function(err) {
-        done(err);
-        if (err) {
-          callback(err);
-        } else {
-          callback(null, true);
-        }
-      })
-    }
-    client.query(
-      'SELECT max(version) AS max_version FROM ops WHERE collection = $1 AND doc_id = $2',
-      [collection, id],
-      function(err, res) {
-        var max_version = res.rows[0].max_version;
-        if (max_version == null)
-          max_version = 0;
-        if (snapshot.v !== max_version + 1) {
-          return callback(null, false);
-        }
-        client.query('BEGIN', function(err) {
-          client.query(
-            'INSERT INTO ops (collection, doc_id, version, operation) VALUES ($1, $2, $3, $4)',
-            [collection, id, snapshot.v, op],
-            function(err, res) {
-              if (err) {
-                // TODO: if err is "constraint violation", callback(null, false) instead
-                rollback(client, done);
-                callback(err);
-                return;
-              }
-              if (snapshot.v === 1) {
-                client.query(
-                  'INSERT INTO snapshots (collection, doc_id, doc_type, version, data) VALUES ($1, $2, $3, $4, $5)',
-                  [collection, id, snapshot.type, snapshot.v, snapshot.data],
-                  function(err, res) {
-                    // TODO:
-                    // if the insert was successful and did insert, callback(null, true)
-                    // if the insert was successful and did not insert, callback(null, false)
-                    // if there was an error, rollback and callback(error)
-                    if (err) {
-                      rollback(client, done);
-                      callback(err);
-                      return;
-                    }
-                    commit();
-                  }
-                )
-              } else {
-                client.query(
-                  'UPDATE snapshots SET doc_type = $3, version = $4, data = $5 WHERE collection = $1 AND doc_id = $2 AND version = ($4 - 1)',
-                  [collection, id, snapshot.type, snapshot.v, snapshot.data],
-                  function(err, res) {
-                    // TODO:
-                    // if any rows were updated, success
-                    // if 0 rows were updated, rollback and not success
-                    // if error, rollback and not success
-                    if (err) {
-                      rollback(client, done);
-                      callback(err);
-                      return;
-                    }
-                    commit();
-                  }
-                )
-              }
-            }
-          )
-        })
+    this.pool.connect((err, client, done) => {
+      if (err) {
+        done(client);
+        callback(err);
+        return;
       }
-    )
-  })
+    /*
+    * This query uses common table expression to upsert the snapshot table 
+    * (iff the new version is exactly 1 more than the latest table or if
+    * the document id does not exists)
+    *
+    * It will then insert into the ops table if it is exactly 1 more than the 
+    * latest table or it the first operation and iff the previous insert into
+    * the snapshot table is successful.
+    *
+    * This result of this query the version of the newly inserted operation
+    * If either the ops or the snapshot insert fails then 0 rows are returned
+    *
+    * If 0 zeros are return then the callback must return false   
+    *
+    * Casting is required as postgres thinks that collection and doc_id are
+    * not varchar  
+    */  
+    const query = {
+      name: 'sdb-commit-op-and-snap',
+      text: `WITH snapshot_id AS (
+  INSERT INTO snapshots (collection, doc_id, doc_type, version, data)
+  SELECT $1::varchar collection, $2::varchar doc_id, $4 doc_type, $3 v, $5 d
+  WHERE $3 = (
+    SELECT version+1 v
+    FROM snapshots
+    WHERE collection = $1 AND doc_id = $2
+    FOR UPDATE
+  ) OR NOT EXISTS (
+    SELECT 1
+    FROM snapshots
+    WHERE collection = $1 AND doc_id = $2
+    FOR UPDATE
+  )
+  ON CONFLICT (collection, doc_id) DO UPDATE SET version = $3, data = $5, doc_type = $4
+  RETURNING version
+)
+INSERT INTO ops (collection, doc_id, version, operation)
+SELECT $1::varchar collection, $2::varchar doc_id, $3 v, $6 operation
+WHERE (
+  $3 = (
+    SELECT max(version)+1
+    FROM ops
+    WHERE collection = $1 AND doc_id = $2
+  ) OR NOT EXISTS (
+    SELECT 1
+    FROM ops
+    WHERE collection = $1 AND doc_id = $2
+  )
+) AND EXISTS (SELECT 1 FROM snapshot_id)
+RETURNING version`,
+      values: [collection,id,snapshot.v, snapshot.type, snapshot.data,op]
+    }
+    client.query(query, (err, res) => {
+      if (err) {
+        callback(err)
+      } else if(res.rows.length === 0) {
+        done(client);
+        callback(null,false)
+      } 
+      else {
+        done(client);
+        callback(null,true)
+      }
+    })
+    
+    })
 };
 
 // Get the named document from the database. The callback is called with (err,
@@ -181,9 +171,12 @@ PostgresDB.prototype.getOps = function(collection, id, from, to, options, callba
       callback(err);
       return;
     }
-    client.query(
-      'SELECT version, operation FROM ops WHERE collection = $1 AND doc_id = $2 AND version >= $3 AND version < $4',
-      [collection, id, from, to],
+
+    var cmd = 'SELECT version, operation FROM ops WHERE collection = $1 AND doc_id = $2 AND version > $3 ';
+    var params = [collection, id, from];
+    if(to || to == 0) { cmd += ' AND version <= $4'; params.push(to)}
+    cmd += ' order by version';
+    client.query( cmd, params,
       function(err, res) {
         done();
         if (err) {
