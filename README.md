@@ -15,6 +15,7 @@ Other forks have been maintained in the past during times when this repsitory wa
 
  * https://github.com/billwashere/sharedb-postgres-jsonb
  * https://github.com/zbryikt/sharedb-postgres-jsonb
+ * https://github.com/plotdb/sharedb-postgres
 
 ## Installation 
 
