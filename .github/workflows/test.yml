@@ -1,0 +1,56 @@
+name: Test
+
+on:
+  push:
+    branches:
+    - main
+    - setup-ci # TODO: Remove
+  pull_request:
+    branches:
+    - main
+
+jobs:
+  test:
+    name: Node.js ${{ matrix.node }} + PostgreSQL ${{ matrix.postgres }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+        - 16
+        - 18
+        - 20
+        postgres:
+        - 13
+        - 14
+        - 15
+        - 16
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+        - 5432:5432
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node }}
+    - name: Install
+      run: npm install
+    - name: Test
+      run: npm test
+      env:
+        PGUSER: postgres
+        PGPASSWORD: postgres
+        PGDATABASE: postgres
