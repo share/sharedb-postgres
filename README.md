@@ -1,4 +1,4 @@
-# @plotdb/sharedb-postgres
+# sharedb-postgres
 
 PostgreSQL database adapter for [sharedb](https://github.com/share/sharedb). This driver can be used both as a snapshot store and oplog.
 
@@ -7,15 +7,11 @@ Doesn't support queries (yet?).
 Moderately experimental. (This drives [Synaptograph](https://www.synaptograph.com)'s backend, and [@nornagon](https://github.com/nornagon) hasn't noticed any issues so far.)
 
 
-## Note about versioning
 
-This is a fork from the [original `sharedb-postgres`](https://github.com/share/sharedb-postgres) and its relative forks (see [billwashere](https://github.com/billwashere/sharedb-postgres-jsonb), [zbryikt](https://github.com/zbryikt/sharedb-postgres-jsonb). It seems to have been not maintained for a long time since 2018, Thus we decide to fork it and maintain it as `@plotdb/sharedb-postgre`.
-
-
-## Installation 
+## Installation
 
 ```cmd
-npm i @plotdb/sharedb-postgres
+npm i sharedb-postgres
 ```
 
 
@@ -25,7 +21,7 @@ Due to the fix to resolve [high concurency issues](https://github.com/share/shar
 
 ## Migrating older versions
 
-Older versions of this adaptor used the data type json. You will need to alter the data type prior to using if you are upgrading. 
+Older versions of this adaptor used the data type json. You will need to alter the data type prior to using if you are upgrading.
 
 ```PLpgSQL
 ALTER TABLE ops
@@ -44,16 +40,16 @@ ALTER TABLE snapshots
 `sharedb-postgres-jsonb` wraps native [node-postgres](https://github.com/brianc/node-postgres), and it supports the same configuration options.
 
 To instantiate a sharedb-postgres wrapper, invoke the module and pass in your
-PostgreSQL configuration as an argument or use environmental arguments. 
+PostgreSQL configuration as an argument or use environmental arguments.
 
 For example using environmental arugments:
 
 ```js
-var db = require('@plotdb/sharedb-postgres')();
+var db = require('sharedb-postgres')();
 var backend = require('sharedb')({db: db})
 ```
 
-Then executing via the command line 
+Then executing via the command line
 
 ```
 PGUSER=dbuser  PGPASSWORD=secretpassword PGHOST=database.server.com PGDATABASE=mydb PGPORT=5433 npm start
@@ -62,7 +58,7 @@ PGUSER=dbuser  PGPASSWORD=secretpassword PGHOST=database.server.com PGDATABASE=m
 Example using an object
 
 ```js
-var db = require('@plotdb/sharedb-postgres')({host: 'localhost', database: 'mydb'});
+var db = require('sharedb-postgres')({host: 'localhost', database: 'mydb'});
 var backend = require('sharedb')({db: db})
 ```
 
