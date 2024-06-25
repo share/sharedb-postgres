@@ -26,3 +26,17 @@ ALTER TABLE snapshots
   ALTER COLUMN data
   SET DATA TYPE jsonb
   USING data::jsonb;
+
+
+-- v5.0.0 --
+
+ALTER TABLE snapshots
+  ALTER column doc_type
+  DROP NOT NULL;
+
+ALTER TABLE snapshots
+  ALTER column data
+  DROP NOT NULL;
+
+ALTER TABLE snapshots
+  ADD metadata jsonb;
