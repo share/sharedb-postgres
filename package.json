@@ -1,6 +1,6 @@
 {
   "name": "sharedb-postgres",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "PostgreSQL adapter for ShareDB. forked from share/sharedb-postgres",
   "main": "index.js",
   "scripts": {
