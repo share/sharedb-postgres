@@ -80,7 +80,7 @@ PostgresDB.prototype.commit = async function(collection, id, op, snapshot, optio
     WHERE collection = $1 AND doc_id = $2
     FOR UPDATE
   )
-  ON CONFLICT (collection, doc_id) DO UPDATE SET version = $3, data = $5, doc_type = $4, metadata = $5
+  ON CONFLICT (collection, doc_id) DO UPDATE SET version = $3, data = $5, doc_type = $4, metadata = $6
   RETURNING version
 )
 INSERT INTO ops (collection, doc_id, version, operation)
