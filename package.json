@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "chai": "^6.2.2",
-    "mocha": "^10.4.0",
+    "mocha": "^11.7.6",
     "ot-json1": "^1.0.2",
     "rich-text": "^4.1.0",
     "sinon": "^22.0.0"
