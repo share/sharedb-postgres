@@ -16,14 +16,15 @@ jobs:
       fail-fast: false
       matrix:
         node:
-        - 16
-        - 18
-        - 20
+        - 22
+        - 24
+        - 26
         postgres:
-        - 13
         - 14
         - 15
         - 16
+        - 17
+        - 18
     services:
       postgres:
         image: postgres:${{ matrix.postgres }}
