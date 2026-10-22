@@ -1,5 +1,8 @@
 # sharedb-postgres
 
+[![NPM Version](https://img.shields.io/npm/v/sharedb-postgres.svg)](https://npmjs.org/package/sharedb-postgres)
+[![Test](https://github.com/share/sharedb-postgres/actions/workflows/test.yml/badge.svg)](https://github.com/share/sharedb-postgres/actions/workflows/test.yml)
+
 PostgreSQL database adapter for [sharedb](https://github.com/share/sharedb). This driver can be used both as a snapshot store and oplog.
 
 Doesn't support queries (yet?).
