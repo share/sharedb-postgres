@@ -114,13 +114,14 @@ RETURNING version`,
 // snapshot). A snapshot with a version of zero is returned if the docuemnt
 // has never been created in the database.
 PostgresDB.prototype.getSnapshot = async function(collection, id, fields, options, callback) {
-  fields ||= {};
   options ||= {};
-  const wantsMetadata = fields.$submit || options.metadata;
+  const wantsMetadata = fields?.$submit || options.metadata;
+  const params = [collection, id];
+  const dataColumn = selectData(fields, params);
   try {
     const result = await this._pool.query(
-      'SELECT version, data, doc_type, metadata FROM snapshots WHERE collection = $1 AND doc_id = $2 LIMIT 1',
-      [collection, id],
+      `SELECT version, ${dataColumn} AS data, doc_type, metadata FROM snapshots WHERE collection = $1 AND doc_id = $2 LIMIT 1`,
+      params,
     );
 
     var row = result.rows[0]
@@ -139,6 +140,20 @@ PostgresDB.prototype.getSnapshot = async function(collection, id, fields, option
     callback(error);
   }
 };
+
+function selectData(fields, params) {
+  if (!fields || fields.$submit) return 'data';
+
+  const keys = Object.keys(fields);
+  if (!keys.length) return `CASE WHEN doc_type IS NULL THEN NULL ELSE '{}'::jsonb END`;
+
+  params.push(keys);
+  const keysParam = `$${params.length}`;
+  return `CASE WHEN jsonb_typeof(data) = 'object'
+    THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}') FROM jsonb_each(data) WHERE key = ANY(${keysParam}::text[]))
+    ELSE data
+  END`;
+}
 
 // Get operations between [from, to) noninclusively. (Ie, the range should
 // contain start but not end).
