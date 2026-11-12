@@ -93,6 +93,15 @@ describe('PostgresDB', function() {
       expect(snapshot.data).to.eql({y: 6});
     });
 
+    it('matches keys literally, whatever they contain', async () => {
+      const keys = [`x'::text[]); DROP TABLE snapshots; --`, 'a,secret', '{secret}', '"secret"', 'NULL'];
+      const requested = Object.fromEntries(keys.map((key) => [key, true]));
+      const snapshot = {type: 'json0', v: 1, data: {...requested, secret: true}};
+      await commit('testcollection', 'hostile', {v: 0, create: {}}, snapshot, null);
+      const result = await getSnapshot('testcollection', 'hostile', requested, null);
+      expect(result.data).to.eql(requested);
+    });
+
     it('returns empty data when no requested key exists', async () => {
       const snapshot = await getSnapshot('testcollection', 'test', {z: true}, null);
       expect(snapshot.data).to.eql({});

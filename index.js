@@ -116,13 +116,9 @@ RETURNING version`,
 PostgresDB.prototype.getSnapshot = async function(collection, id, fields, options, callback) {
   options ||= {};
   const wantsMetadata = fields?.$submit || options.metadata;
-  const params = [collection, id];
-  const dataColumn = selectData(fields, params);
+  const {text, values} = snapshotQuery(collection, id, fields);
   try {
-    const result = await this._pool.query(
-      `SELECT version, ${dataColumn} AS data, doc_type, metadata FROM snapshots WHERE collection = $1 AND doc_id = $2 LIMIT 1`,
-      params,
-    );
+    const result = await this._pool.query(text, values);
 
     var row = result.rows[0]
     const snapshot = {
@@ -141,18 +137,29 @@ PostgresDB.prototype.getSnapshot = async function(collection, id, fields, option
   }
 };
 
-function selectData(fields, params) {
-  if (!fields || fields.$submit) return 'data';
+const SELECT_SNAPSHOT =
+  'SELECT version, data, doc_type, metadata FROM snapshots WHERE collection = $1 AND doc_id = $2 LIMIT 1';
+
+const SELECT_SNAPSHOT_WITHOUT_DATA = `SELECT version,
+    CASE WHEN doc_type IS NULL THEN NULL ELSE '{}'::jsonb END AS data,
+    doc_type, metadata
+  FROM snapshots WHERE collection = $1 AND doc_id = $2 LIMIT 1`;
+
+const SELECT_SNAPSHOT_KEYS = `SELECT version,
+    CASE WHEN jsonb_typeof(data) = 'object'
+      THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}') FROM jsonb_each(data) WHERE key = ANY($3::text[]))
+      ELSE data
+    END AS data,
+    doc_type, metadata
+  FROM snapshots WHERE collection = $1 AND doc_id = $2 LIMIT 1`;
+
+function snapshotQuery(collection, id, fields) {
+  if (!fields || fields.$submit) return {text: SELECT_SNAPSHOT, values: [collection, id]};
 
   const keys = Object.keys(fields);
-  if (!keys.length) return `CASE WHEN doc_type IS NULL THEN NULL ELSE '{}'::jsonb END`;
+  if (!keys.length) return {text: SELECT_SNAPSHOT_WITHOUT_DATA, values: [collection, id]};
 
-  params.push(keys);
-  const keysParam = `$${params.length}`;
-  return `CASE WHEN jsonb_typeof(data) = 'object'
-    THEN (SELECT coalesce(jsonb_object_agg(key, value), '{}') FROM jsonb_each(data) WHERE key = ANY(${keysParam}::text[]))
-    ELSE data
-  END`;
+  return {text: SELECT_SNAPSHOT_KEYS, values: [collection, id, keys]};
 }
 
 // Get operations between [from, to) noninclusively. (Ie, the range should
